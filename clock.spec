@@ -5,8 +5,6 @@ Version:	1.1
 Release:	7
 License:	distributable
 Group:		Applications/System
-Group(de):	Applikationen/System
-Group(pl):	Aplikacje/System
 Source0:	%{name}-%{version}.tar.gz
 Patch0:		%{name}-fix.patch
 Patch1:		%{name}-fix2.patch
