@@ -17,7 +17,7 @@ The clock utility is used to query and set system time.
 %description -l pl
 Narzêdzie clock s³u¿y do odczytywania i ustawiania zegara systemowego.
 
-%prep 
+%prep
 %setup -q
 %patch0 -p1
 %patch1 -p1
