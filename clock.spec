@@ -7,8 +7,8 @@ Copyright:	distributable
 Group:		Utilities/System
 Group(pl):	Narzêdzia/System
 Source:		clock-1.1.tar.gz
-Patch0:		clock-1.1-fix.patch
-Patch1:		clock-1.1-fix2.patch
+Patch0:		clock-fix.patch
+Patch1:		clock-fix2.patch
 ExclusiveArch:  sparc alpha
 BuildRoot:	/tmp/%{name}-%{version}-root
 
