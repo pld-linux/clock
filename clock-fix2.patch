@@ -1,0 +1,209 @@
+--- clock-1.1/clock-alpha.c.fix2	Tue Oct 13 15:08:19 1998
++++ clock-1.1/clock-alpha.c	Tue Oct 13 15:13:47 1998
+@@ -173,7 +173,8 @@
+ int universal = 0;
+ int debug = 0;
+ int arcit = 0;
+-int bcdit = 0;
++int srmit = 0;
++int funky_toy = 0;
+ int clockport = 0x70;
+ const char *pgm_name;
+ 
+@@ -185,14 +186,17 @@
+ usage ()
+ {
+   fprintf (stderr, 
+-    "usage: %s [-u] -r|w|s|a|v\n"
++    "usage: %s [-r|w|s|a|u|A|S|J|F|D|v]\n"
+     "  r: read and print CMOS clock\n"
+     "  w: write CMOS clock from system time\n"
+     "  s: set system time from CMOS clock\n"
+     "  a: get system time and adjust CMOS clock\n"
+     "  u: CMOS clock is in universal time\n"
+     "  A: CMOS clock is in Alpha ARC console time\n"
++    "  S: CMOS clock is in Alpha SRM console time\n"
+     "  J: we are running on an Alpha Jensen\n"
++    "  F: we are running on an Alpha with funky TOY\n"
++    "  D: enable debug printouts\n"
+     "  v: print version (" VERSION ") and exit\n", pgm_name
+   );
+   exit (1);
+@@ -229,6 +233,33 @@
+   exit(1);
+ }
+ 
++static int
++is_in_cpuinfo(char *fmt, char *str)
++{
++    FILE *cpuinfo;
++    char field[256];
++    char format[256];
++    int found = 0;
++
++    sprintf(format, "%s : %s", fmt, "%255s");
++
++    if (cpuinfo = fopen ("/proc/cpuinfo", "r"))
++      {
++	while (!feof(cpuinfo))
++	  {
++	    if (fscanf (cpuinfo, format, field) == 1)
++	      {
++		if (strncmp(field, str, strlen(str)) == 0)
++		  found = 1;;
++		break;
++	      }
++	    fgets (field, 256, cpuinfo);
++	  }
++	fclose(cpuinfo);
++      }
++    return found;
++}
++
+ #elif __i386__
+ 
+ static unsigned long
+@@ -306,7 +337,7 @@
+   if (arcit) /* Alpha ARC console */
+       tm->tm_year -= 80;
+   
+-  if (!(cmos_read (11) & 0x04) || bcdit) {
++  if (!(cmos_read (11) & 0x04)) {
+ #if 0
+       printf("writing CMOS time in BCD format!\n");
+ #endif
+@@ -360,7 +391,7 @@
+   int adjustment = 0;
+ 
+   pgm_name = argv[0];
+-  while ((arg = getopt (argc, argv, "rwsuaAJDv")) != -1)
++  while ((arg = getopt (argc, argv, "rwsuaAJFSDv")) != -1)
+     {
+       switch (arg)
+ 	{
+@@ -385,6 +416,12 @@
+ 	case 'J':
+ 	  clockport = 0x170;
+ 	  break;
++	case 'F':
++	  funky_toy = 1;
++	  break;
++	case 'S':
++	  srmit = 1;
++	  break;
+         case 'D':
+ 	  debug = 1;
+ 	  break;
+@@ -405,25 +442,47 @@
+ #ifdef __alpha__
+   /* See whether we're dealing with a Jensen---it has a weird I/O
+      system.  DEC was just learning how to build Alpha PCs.  */
+-  if (clockport != 0x170) {
+-    FILE *cpuinfo;
+-    char field[256];
++  if ((clockport != 0x170) && is_in_cpuinfo("system type", "Jensen")) {
++    clockport = 0x170;
++    if (debug) printf ("clockport adjusted to 0x%x\n", clockport);
++  }
+ 
+-    if (cpuinfo = fopen ("/proc/cpuinfo", "r"))
+-      {
+-	while (!feof(cpuinfo))
+-	  {
+-	    if (fscanf (cpuinfo,"system type : %255s", field) == 1)
+-	      {
+-		if (strcmp(field, "Jensen") == 0)
+-		  clockport = 0x170;
+-		break;
+-	      }
+-	    fgets (field, 256, cpuinfo);
+-	  }
+-	fclose(cpuinfo);
+-      }
++  /* see whether we are dealing with PC164/LX164/SX164, as they have a TOY
++     that must be accessed differently to work correctly. */
++  if (!funky_toy) {
++    if (is_in_cpuinfo("system variation", "PC164") ||
++	is_in_cpuinfo("system variation", "LX164") ||
++	is_in_cpuinfo("system variation", "SX164")) {
++      funky_toy = 1;
++      if (debug) printf ("funky TOY!\n");
++    }
++  }
++
++  /* see whether we are dealing with SRM or MILO, as they have
++     different "epoch" ideas. */
++  if (!arcit) {
++    if (is_in_cpuinfo("system serial number", "MILO")) {
++      arcit = 1;
++      if (debug) printf ("booted from MILO\n");
++    }
++  }
++
++  /* see whether we are dealing with a RUFFIAN aka UX, as they have
++     REALLY different TOY format: BCD, and not an ARC-style epoch.
++     BCD is detected dynamically, but we must NOT adjust like ARC. */
++  if (arcit && is_in_cpuinfo("system type", "Ruffian")) {
++    arcit = 0;
++    if (debug) printf ("Ruffian BCD clock\n");
+   }
++
++  /* if we are forcing SRM, clear the ARC flag, since that may be set
++     dynamically. this allows handling of SRM->MILO->kernel booting,
++     though not automatically... ;-} */
++  if (arcit && srmit) {
++    arcit = 0;
++    if (debug) printf ("forcing to SRM\n");
++  }
++
+ #endif
+ 
+   cmos_init ();
+@@ -442,7 +501,8 @@
+ 	  exit (2);
+ 	}
+       fclose (adj);
+-      if (debug) printf ("Last adjustment done at %d seconds after 1/1/1970\n", last_time);
++      if (debug) printf ("Last adjustment done at %d seconds after 1/1/1970\n",
++			 last_time);
+     }
+ 
+   if (readit || setit || adjustit)
+@@ -452,19 +512,17 @@
+ /* read RTC exactly on falling edge of update flag */
+ /* Wait for rise.... (may take upto 1 second) */
+ 
+-      for (i = 0; i < 10000000; i++)	
+-#ifdef __alpha__
+-	  if (cmos_read (12) & 0x10)
+-#else /* __alpha__ */
+-	      if (cmos_read (10) & 0x80)
+-#endif /* __alpha__ */
+-	  break;
+-
+ /* Wait for fall.... (must try at least 2.228 ms) */
+ 
+-      for (i = 0; i < 1000000; i++)	
+-	if (!(cmos_read (10) & 0x80))
+-	  break;
++      for (i = 0; i < 1000000; i++) {
++	  if (funky_toy) {
++	      if (cmos_read (12) & 0x10)
++		  break;
++	  } else {
++	      if (!(cmos_read (10) & 0x80))
++		  break;
++	  }
++      }
+ 
+ /* The purpose of the "do" loop is called "low-risk programming" */
+ /* In theory it should never run more than once */
+@@ -480,7 +538,7 @@
+ 	}
+       while (tm.tm_sec != cmos_read (0));
+ 
+-      if (!(cmos_read (11) & 0x04) || bcdit) {
++      if (!(cmos_read (11) & 0x04)) {
+ #if 0
+ 	  printf("reading CMOS time in BCD format!\n");
+ #endif
