@@ -3,7 +3,7 @@ Summary(pl):	Narzêdzie do odczytu i ustawiania zegara systemowego
 Name:		clock
 Version:	1.1
 Release:	7
-Copyright:	distributable
+License:	distributable
 Group:		Applications/System
 Group(de):	Applikationen/System
 Group(pl):	Aplikacje/System
