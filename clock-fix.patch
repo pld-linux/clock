@@ -1,0 +1,87 @@
+--- clock-1.1/clock-alpha.c.fix	Thu Oct  1 02:58:19 1998
++++ clock-1.1/clock-alpha.c	Thu Oct  1 03:03:34 1998
+@@ -153,7 +153,10 @@
+ /* Here the information for time adjustments is kept. */
+ #define ADJPATH "/etc/adjtime"
+ 
+-
++/* for BCD formart clock maintenance */
++#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
++#define BIN_TO_BCD(val) ((val)=(((val)/10)<<4) + (val)%10)
++    
+ /* used for debugging the code. */
+ #undef KEEP_OFF
+ 
+@@ -170,6 +173,7 @@
+ int universal = 0;
+ int debug = 0;
+ int arcit = 0;
++int bcdit = 0;
+ int clockport = 0x70;
+ const char *pgm_name;
+ 
+@@ -299,14 +303,28 @@
+   save_freq_select = cmos_read (10);       /* stop and reset prescaler */
+   cmos_write (10, (save_freq_select | clockport));
+ 
++  if (arcit) /* Alpha ARC console */
++      tm->tm_year -= 80;
++  
++  if (!(cmos_read (11) & 0x04) || bcdit) {
++#if 0
++      printf("writing CMOS time in BCD format!\n");
++#endif
++      BIN_TO_BCD(tm->tm_sec);
++      BIN_TO_BCD(tm->tm_min);
++      BIN_TO_BCD(tm->tm_hour);
++      BIN_TO_BCD(tm->tm_wday);
++      BIN_TO_BCD(tm->tm_mday);
++      BIN_TO_BCD(tm->tm_mon);
++      BIN_TO_BCD(tm->tm_year);
++  }
++  
+   cmos_write (0, tm->tm_sec);
+   cmos_write (2, tm->tm_min);
+   cmos_write (4, tm->tm_hour);
+   cmos_write (6, tm->tm_wday + 3);
+   cmos_write (7, tm->tm_mday);
+   cmos_write (8, tm->tm_mon + 1);
+-  if (arcit) /* Alpha ARC console */
+-    tm->tm_year -= 80;
+   cmos_write (9, tm->tm_year);
+ 
+   cmos_write (10, save_freq_select);
+@@ -435,7 +453,11 @@
+ /* Wait for rise.... (may take upto 1 second) */
+ 
+       for (i = 0; i < 10000000; i++)	
+-	if (cmos_read (10) & 0x80)
++#ifdef __alpha__
++	  if (cmos_read (12) & 0x10)
++#else /* __alpha__ */
++	      if (cmos_read (10) & 0x80)
++#endif /* __alpha__ */
+ 	  break;
+ 
+ /* Wait for fall.... (must try at least 2.228 ms) */
+@@ -457,6 +479,20 @@
+ 	  tm.tm_year = cmos_read (9);
+ 	}
+       while (tm.tm_sec != cmos_read (0));
++
++      if (!(cmos_read (11) & 0x04) || bcdit) {
++#if 0
++	  printf("reading CMOS time in BCD format!\n");
++#endif
++	  BCD_TO_BIN(tm.tm_sec);
++	  BCD_TO_BIN(tm.tm_min);
++	  BCD_TO_BIN(tm.tm_hour);
++	  BCD_TO_BIN(tm.tm_wday);
++	  BCD_TO_BIN(tm.tm_mday);
++	  BCD_TO_BIN(tm.tm_mon);
++	  BCD_TO_BIN(tm.tm_year);
++      }
++      
+       if (arcit) { /* Alpha ARC console */
+ 	tm.tm_year += 80;
+       } else {
