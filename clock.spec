@@ -1,5 +1,5 @@
 Summary:	A utility for querying and setting system time
-Summary(pl):	Narzêdzie do odczytu i ustawiania zegara systemowego
+Summary(pl.UTF-8):   NarzÄ™dzie do odczytu i ustawiania zegara systemowego
 Name:		clock
 Version:	1.1
 Release:	7
@@ -14,8 +14,8 @@ BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 %description
 The clock utility is used to query and set system time.
 
-%description -l pl
-Narzêdzie clock s³u¿y do odczytywania i ustawiania zegara systemowego.
+%description -l pl.UTF-8
+NarzÄ™dzie clock sÅ‚uÅ¼y do odczytywania i ustawiania zegara systemowego.
 
 %prep
 %setup -q
