@@ -1,5 +1,5 @@
 Summary:	A utility for querying and setting system time
-Summary(pl.UTF-8):   Narzędzie do odczytu i ustawiania zegara systemowego
+Summary(pl.UTF-8):	Narzędzie do odczytu i ustawiania zegara systemowego
 Name:		clock
 Version:	1.1
 Release:	7
